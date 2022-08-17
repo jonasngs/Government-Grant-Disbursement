@@ -2,11 +2,10 @@ const pool = require('../db');
 
 async function createHousehold(req, res) {
   try {
-    const { householdType } = req.body;
-    console.log(householdType);
+    const { housingType } = req.body;
     const query = await pool.query(
       'INSERT INTO household_tab (household_type) VALUES ($1) RETURNING *',
-      [householdType]
+      [housingType]
     );
     res.status(200)
   } catch (err) {
@@ -22,11 +21,17 @@ async function createHouseholdMember(req, res) {
   try {
     const { householdId } = req.params;
     const { name, gender, maritalStatus, spouse, occupationType, annualIncome, dob } = req.body;
-    const query = await pool.query(
-      'INSERT INTO family_member_tab (household_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [householdId, name, gender, maritalStatus, spouse, occupationType, annualIncome, dob]
-    );
-    res.status(200)
+    if (name == "" || gender == "" || maritalStatus == "") {
+      throw new Error("Input cannot be empty")
+    } else if (annualIncome < 0) {
+      throw new Error("Annual Income cannot be negative")
+    } else {
+      const query = await pool.query(
+        'INSERT INTO family_member_tab (household_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [householdId, name, gender, maritalStatus, spouse, occupationType, annualIncome, dob]
+      );
+      res.status(200)
+    }
   } catch (err) {
     if (err.code == 23514) {
       res.status(400).json({error: "Input is not included in valid options"})
@@ -38,13 +43,30 @@ async function createHouseholdMember(req, res) {
 
 async function getHouseholds(req, res) {
   try {
-    const householdRecords = await pool.query(
-      'SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth::date FROM household_tab '+
-      'INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id'
-    );
-    const households = generateHouseholdsObj(householdRecords.rows)
-    res.status(200).json(households)
+    const householdRecords = await pool.query('SELECT * FROM household_tab');
+    const households = generateEmptyHouseholdsObj(householdRecords.rows)
+    const members = await pool.query('SELECT * FROM family_member_tab');
+    if (members.rows.length == 0) {
+      res.status(200).json(households)
+    } else {
+      console.log(households)
+      members.rows.forEach(record => {
+        const formattedDate = formatDate(record.date_of_birth)
+        households[record.household_id]["members"][record.member_id] = {
+          name: record.name,
+          gender: record.gender,
+          maritalStatus: record.marital_status,
+          spouse: record.spouse,
+          occupationType: record.occupation_type,
+          annualIncome: record.annual_income,
+          dob: formattedDate
+        }
+      })
+
+      res.status(200).json(households);
+    }
   } catch (err) {
+    console.log("here")
     res.status(400).json({error: err.message})
   }
 }
@@ -65,7 +87,7 @@ async function searchHousehold(req, res) {
       
       if (householdRecord.rows.length == 0) { // Household has no members
         res.status(200).json({ 
-          householdType: query.rows[0].household_type, 
+          householdType: query.rows[0].household_type,
           members: {}
         })
       } else {
@@ -82,8 +104,8 @@ async function searchHousehold(req, res) {
 function generateHouseholdObj(memberRecords) {
   const res = {}
   memberRecords.forEach(record => {
-    if (!res["householdType"]) {
-      res["householdType"] = record.household_type
+    if (!res["housingType"]) {
+      res["housingType"] = record.household_type
     }
 
     if (!res["members"]) {
@@ -105,32 +127,13 @@ function generateHouseholdObj(memberRecords) {
   return res;
 }
 
-// Create an object that stores all household records
-function generateHouseholdsObj(householdRecords) {
-  const res = {}
+// Create an object that stores all household records where households are empty
+function generateEmptyHouseholdsObj(householdRecords) {
+  var res = {}
   householdRecords.forEach(record => {
-    if (!res[record.household_id]) {
-      res[record.household_id] = {}
-    }
-
-    if (!res[record.household_id]["householdType"]) {
-      res[record.household_id]["householdType"] = record.household_type;
-    }
-
-    if (!res[record.household_id]["familyMembers"]) {
-      res[record.household_id]["familyMembers"] = {}
-    }
-
-    const formattedDate = formatDate(record.date_of_birth)
-    res[record.household_id]["familyMembers"][record.member_id] = {
-      name: record.name,
-      gender: record.gender,
-      maritalStatus: record.marital_status,
-      spouse: record.spouse,
-      occupationType: record.occupation_type,
-      annualIncome: record.annual_income,
-      dob: formattedDate
-    }
+    res[record.household_id] = {}
+    res[record.household_id]["housingType"] = record.household_type
+    res[record.household_id]["members"] = {}
   });
 
   return res;

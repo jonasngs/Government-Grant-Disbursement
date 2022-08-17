@@ -11,7 +11,7 @@ CREATE TABLE family_member_tab(
   name VARCHAR(64) NOT NULL,
   gender VARCHAR(10) NOT NULL CHECK (gender = 'Male' OR gender = 'Female'),
   marital_status VARCHAR(20) NOT NULL,
-  spouse VARCHAR(64) NOT NULL,
+  spouse VARCHAR(64) DEFAULT '',
   occupation_type VARCHAR(20) NOT NULL CHECK (occupation_type = 'Unemployed' OR occupation_type = 'Student' OR occupation_type = 'Employed'),
   annual_income BIGINT NOT NULL,
   date_of_birth DATE NOT NULL,

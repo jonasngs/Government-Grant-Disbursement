@@ -43,19 +43,11 @@ async function studentEncouragementBonus() {
     if (params.length == 0) {
       return {};
     } else {
-      var whereClause = ""
-
-      for (let i = 1; i <= params.length; i++) {
-        whereClause += "household_id = $" + `${i}`
-        if (i != params.length) {
-          whereClause += " OR "
-        }
-      }
-
+      var whereClause = getWhereClause(params.length, "household_id")
       let query = `SELECT household_id FROM family_member_tab WHERE (${whereClause}) AND date_of_birth > ${"$"+(params.length + 1).toString()}`
       params.push(cutOffDate)
       const eligibleHouseholds = await pool.query(query, params);
-
+  
       params = []
 
       eligibleHouseholds.rows.forEach(record => {
@@ -65,14 +57,7 @@ async function studentEncouragementBonus() {
       if (params.length == 0) {
         return {};
       } else {
-        whereClause = ""
-
-        for (let i = 1; i <= params.length; i++) {
-          whereClause += "household_tab.household_id = $" + `${i}`
-          if (i != params.length) {
-            whereClause += " OR "
-          }
-        }
+        whereClause = getWhereClause(params.length, "household_tab.household_id")
 
         query = `SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab `+
         `INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE (${whereClause}) AND date_of_birth > ${"$"+(params.length + 1).toString()}`
@@ -91,8 +76,8 @@ async function studentEncouragementBonus() {
 
 async function multigenerationalScheme() {
   try {
-    const upperLimit = getDateLimit(-18, 0, 0);
-    const lowerLimit = getDateLimit(-55, 0, 0);
+    const lowerLimit = getDateLimit(-18, 0, 0);
+    const upperLimit = getDateLimit(-55, 0, 0);
     let eligibleHouseholdsbyIncome = await pool.query("SELECT household_id, SUM(annual_income) FROM family_member_tab GROUP BY household_id");
     
     eligibleHouseholdsbyIncome = eligibleHouseholdsbyIncome.rows.filter(function (element) {
@@ -108,17 +93,10 @@ async function multigenerationalScheme() {
     if (params.length == 0) {
       return {};
     } else {
-      var whereClause = ""
-
-      for (let i = 1; i <= params.length; i++) {
-        whereClause += "household_id = $" + `${i}`
-        if (i != params.length) {
-          whereClause += " OR "
-        }
-      }
+      var whereClause = getWhereClause(params.length, "household_id")
 
       let query = `SELECT household_id FROM family_member_tab WHERE (${whereClause}) AND date_of_birth > ${"$"+(params.length + 1).toString()} OR date_of_birth < ${"$"+(params.length + 2).toString()}`
-      params.push(upperLimit, lowerLimit)
+      params.push(lowerLimit, upperLimit)
       const eligibleHouseholds = await pool.query(query, params);
 
       params = []
@@ -130,14 +108,7 @@ async function multigenerationalScheme() {
       if (params.length == 0) {
         return {};
       } else {
-        var whereClause = ""
-  
-        for (let i = 1; i <= params.length; i++) {
-          whereClause += "household_tab.household_id = $" + `${i}`
-          if (i != params.length) {
-            whereClause += " OR "
-          }
-        }
+        var whereClause = getWhereClause(params.length, "household_tab.household_id")
   
         const query = `SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab `+
         `INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE (${whereClause})`
@@ -171,14 +142,7 @@ async function elderBonus() {
     if (params.length == 0) {
       return {};
     } else {
-      var whereClause = ""
-
-      for (let i = 1; i <= params.length; i++) {
-        whereClause += "household_tab.household_id = $" + `${i}`
-        if (i != params.length) {
-          whereClause += " OR "
-        }
-      }
+      var whereClause = getWhereClause(params.length, "household_tab.household_id")
 
       query = `SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab `+
       `INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE (${whereClause}) AND date_of_birth <= ${"$"+(params.length + 1).toString()}`
@@ -211,36 +175,29 @@ async function babySunshine() {
 
 async function yoloGST() {
   try {
-    const cutOffDate = getDateLimit(-55, 0, 0);
+    let query = "SELECT t1.household_id, sum FROM (SELECT household_id FROM household_tab WHERE household_type = $1) t1 JOIN (SELECT SUM(annual_income), household_id FROM family_member_tab GROUP BY household_id ) t2 ON t1.household_id = t2.household_id";
 
-    let query = "SELECT t1.household_id FROM (SELECT household_id FROM household_tab WHERE household_type = $1) t1 join (SELECT household_id FROM family_member_tab where date_of_birth < $2 ) t2 ON t1.household_id = t2.household_id GROUP BY t1.household_id";
-
-    const eligibleHouseholds = await pool.query(query,
-      ['HDB', cutOffDate]
+    let eligibleHouseholds = await pool.query(query,
+      ['HDB']
     );
+
+    eligibleHouseholds = eligibleHouseholds.rows.filter(function (element) {
+      return element.sum < 100000;
+    });
 
     let params = []
 
-    eligibleHouseholds.rows.forEach(record => {
+    eligibleHouseholds.forEach(record => {
       params.push(record.household_id)
     })
 
     if (params.length == 0) {
       return {};
     } else {
-      var whereClause = ""
-
-      for (let i = 1; i <= params.length; i++) {
-        whereClause += "household_tab.household_id = $" + `${i}`
-        if (i != params.length) {
-          whereClause += " OR "
-        }
-      }
+      var whereClause = getWhereClause(params.length, "household_tab.household_id")
 
       query = `SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab `+
-      `INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE (${whereClause}) AND date_of_birth <= ${"$"+(params.length + 1).toString()}`
-      
-      params.push(cutOffDate)
+      `INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE (${whereClause})`
 
       const eligibleMembers = await pool.query(query, params);
       
@@ -281,6 +238,17 @@ function generateHouseholdsObj(householdRecords) {
   return res;
 }
 
+// Get where clause condition for db queries
+function getWhereClause(numOfParams, columnName) {
+  let whereClause = ""
+  for (var i = 1; i <= numOfParams; i++) {
+    whereClause = whereClause + columnName + " = $" + `${i}`
+    if (i != numOfParams) {
+      whereClause += " OR "
+    }
+  }
+  return whereClause
+}
 
 // Retrieves the cut off date for eligibility of grant
 function getDateLimit(years, months, days) {

@@ -4,7 +4,6 @@ const cors = require('cors');
 const PORT = process.env.PORT || 5000;
 const { createHousehold, createHouseholdMember, getHouseholds, searchHousehold } = require("./controllers/household");
 const { grantEligibility } = require("./controllers/grant");
-const pool = require('./db');
 
 // Middleware
 app.use(cors());
