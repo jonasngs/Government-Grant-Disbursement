@@ -49,7 +49,6 @@ async function getHouseholds(req, res) {
     if (members.rows.length == 0) {
       res.status(200).json(households)
     } else {
-      console.log(households)
       members.rows.forEach(record => {
         const formattedDate = formatDate(record.date_of_birth)
         households[record.household_id]["members"][record.member_id] = {
@@ -66,7 +65,6 @@ async function getHouseholds(req, res) {
       res.status(200).json(households);
     }
   } catch (err) {
-    console.log("here")
     res.status(400).json({error: err.message})
   }
 }
