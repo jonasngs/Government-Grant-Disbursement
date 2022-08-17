@@ -90,6 +90,7 @@ function generateHouseholdObj(memberRecords) {
       res["members"] = {}
     }
 
+    const formattedDate = formatDate(record.date_of_birth)
     res["members"][record.member_id] = {
       name: record.name,
       gender: record.gender,
@@ -97,7 +98,7 @@ function generateHouseholdObj(memberRecords) {
       spouse: record.spouse,
       occupationType: record.occupation_type,
       annualIncome: record.annual_income,
-      dob: record.date_of_birth
+      dob: formattedDate
     }
   })
 
@@ -119,7 +120,8 @@ function generateHouseholdsObj(householdRecords) {
     if (!res[record.household_id]["familyMembers"]) {
       res[record.household_id]["familyMembers"] = {}
     }
-    
+
+    const formattedDate = formatDate(record.date_of_birth)
     res[record.household_id]["familyMembers"][record.member_id] = {
       name: record.name,
       gender: record.gender,
@@ -127,7 +129,7 @@ function generateHouseholdsObj(householdRecords) {
       spouse: record.spouse,
       occupationType: record.occupation_type,
       annualIncome: record.annual_income,
-      dob: record.date_of_birth
+      dob: formattedDate
     }
   });
 
@@ -135,10 +137,9 @@ function generateHouseholdsObj(householdRecords) {
 }
 
 function formatDate(date) {
-  var dateValue = new Date(date)
-  var year = dateValue.getFullYear()
-  var month = dateValue.getFullYear()
-  var year = dateValue.getFullYear()
+  const offset = date.getTimezoneOffset()
+  date = new Date(date.getTime() - (offset*60*1000))
+  return date.toISOString().split('T')[0]
 }
 
 module.exports = {createHousehold, createHouseholdMember, getHouseholds, searchHousehold}
