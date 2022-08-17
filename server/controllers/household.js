@@ -22,10 +22,9 @@ async function createHouseholdMember(req, res) {
   try {
     const { householdId } = req.params;
     const { name, gender, maritalStatus, spouse, occupationType, annualIncome, dob } = req.body;
-    const epochDate = generateEpoch(dob);
     const query = await pool.query(
       'INSERT INTO family_member_tab (household_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [householdId, name, gender, maritalStatus, spouse, occupationType, annualIncome, epochDate]
+      [householdId, name, gender, maritalStatus, spouse, occupationType, annualIncome, dob]
     );
     res.status(200)
   } catch (err) {
@@ -40,7 +39,7 @@ async function createHouseholdMember(req, res) {
 async function getHouseholds(req, res) {
   try {
     const householdRecords = await pool.query(
-      'SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab '+
+      'SELECT household_tab.household_id, household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth::date FROM household_tab '+
       'INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id'
     );
     const households = generateHouseholdsObj(householdRecords.rows)
@@ -59,7 +58,7 @@ async function searchHousehold(req, res) {
       throw new Error("Household does not exist");
     } else {
       const householdRecord = await pool.query(
-        'SELECT household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth FROM household_tab '+
+        'SELECT household_type, member_id, name, gender, marital_status, spouse, occupation_type, annual_income, date_of_birth::date FROM household_tab '+
         'INNER JOIN family_member_tab on household_tab.household_id = family_member_tab.household_id WHERE household_tab.household_id = $1',
         [householdId]
       );
@@ -91,7 +90,6 @@ function generateHouseholdObj(memberRecords) {
       res["members"] = {}
     }
 
-    const dob = generateDate(record.date_of_birth)
     res["members"][record.member_id] = {
       name: record.name,
       gender: record.gender,
@@ -99,7 +97,7 @@ function generateHouseholdObj(memberRecords) {
       spouse: record.spouse,
       occupationType: record.occupation_type,
       annualIncome: record.annual_income,
-      dob: dob
+      dob: record.date_of_birth
     }
   })
 
@@ -121,7 +119,7 @@ function generateHouseholdsObj(householdRecords) {
     if (!res[record.household_id]["familyMembers"]) {
       res[record.household_id]["familyMembers"] = {}
     }
-    const dob = generateDate(record.date_of_birth)
+    
     res[record.household_id]["familyMembers"][record.member_id] = {
       name: record.name,
       gender: record.gender,
@@ -129,25 +127,18 @@ function generateHouseholdsObj(householdRecords) {
       spouse: record.spouse,
       occupationType: record.occupation_type,
       annualIncome: record.annual_income,
-      dob: dob
+      dob: record.date_of_birth
     }
   });
 
   return res;
 }
 
-// Converts epoch date time to date string in the format: YYYY-MM-DD
-function generateDate(epoch) {
-  var dateTime = new Date(epoch*1000).toLocaleString();
-  var date = dateTime.split(",")[0].split(" ")[0]
-  const [ day, month, year ] = date.split("/")
-  return year + "-" + month + "-" + day;
-}
-
-// Only accept date strings that conform to the format: YYYY-MM-DD
-function generateEpoch(dateString) {
-  const date = new Date(dateString).getTime();
-  return Math.floor(date / 1000)
+function formatDate(date) {
+  var dateValue = new Date(date)
+  var year = dateValue.getFullYear()
+  var month = dateValue.getFullYear()
+  var year = dateValue.getFullYear()
 }
 
 module.exports = {createHousehold, createHouseholdMember, getHouseholds, searchHousehold}
